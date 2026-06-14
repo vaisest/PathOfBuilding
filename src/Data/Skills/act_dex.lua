@@ -4,8 +4,7 @@
 -- Active Dexterity skill gems
 -- Skill data (c) Grinding Gear Games
 --
-local skills, mod, flag, skill = ...
-
+return function(skills, mod, flag, skill)
 skills["AlchemistsMark"] = {
 	name = "Alchemist's Mark",
 	baseTypeName = "Alchemist's Mark",
@@ -18483,4 +18482,4 @@ skills["QuickstepHardMode"] = {
 		[9] = { cooldown = 10, levelRequirement = 1, storedUses = 1, },
 		[10] = { cooldown = 10, levelRequirement = 1, storedUses = 1, },
 	},
-}
+}end

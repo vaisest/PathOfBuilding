@@ -325,12 +325,12 @@ end
 function launch:ApplyUpdate(mode)
 	if mode == "basic" then
 		-- Need to revert to the basic environment to fully apply the update
-		LoadModule("UpdateApply", "Update/opFile.txt")
+		LoadModule("UpdateApply")("Update/opFile.txt")
 		SpawnProcess(GetRuntimePath()..'/Update', 'UpdateApply.lua Update/opFileRuntime.txt')
 		Exit()
 	elseif mode == "normal" then
 		-- Update can be applied while normal environment is running
-		LoadModule("UpdateApply", "Update/opFile.txt")
+		LoadModule("UpdateApply")("Update/opFile.txt")
 		Restart()
 		self.doRestart = "Updating..."
 	end

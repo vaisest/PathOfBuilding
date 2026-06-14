@@ -4,8 +4,10 @@
 -- Spectre Data
 -- Monster data (c) Grinding Gear Games
 --
-local minions, mod, flag = ...
 
+return function(mod, flag)
+    ---@class SpectreData
+    local minions = {}
 -- Blackguard
 minions["Metadata/Monsters/Axis/AxisCaster"] = {
 	name = "Blackguard Mage",
@@ -7112,3 +7114,5 @@ minions["Metadata/Monsters/FaridunLeague/FaridunWarlock/FaridunWarlockHigh"] = {
 		-- map_related_item_drop_chance_+%_final_from_league [map_related_item_drop_chance_+%_final_from_league = -50]
 	},
 }
+    return minions
+end

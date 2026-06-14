@@ -4,8 +4,7 @@
 -- Active Intelligence skill gems
 -- Skill data (c) Grinding Gear Games
 --
-local skills, mod, flag, skill = ...
-
+return function(skills, mod, flag, skill)
 skills["Arc"] = {
 	name = "Arc",
 	baseTypeName = "Arc",
@@ -21371,4 +21370,4 @@ skills["Zealotry"] = {
 		[39] = { 19, 53, 33, cooldown = 1.2, levelRequirement = 99, manaReservationPercent = 50, storedUses = 1, statInterpolation = { 1, 1, 1, }, },
 		[40] = { 20, 54, 34, cooldown = 1.2, levelRequirement = 100, manaReservationPercent = 50, storedUses = 1, statInterpolation = { 1, 1, 1, }, },
 	},
-}
+}end

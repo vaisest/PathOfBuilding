@@ -4,8 +4,7 @@
 -- Spectre active skills
 -- Skill data (c) Grinding Gear Games
 --
-local skills, mod, flag, skill = ...
-
+return function(skills, mod, flag, skill)
 skills["AxisCasterGlacialCascade"] = {
 	name = "Glacial Cascade",
 	hidden = true,
@@ -11605,4 +11604,4 @@ skills["FaridunCasterUndeadDamageOverTimeAura"] = {
 		[1] = { 14, 10, cooldown = 0.5, levelRequirement = 0, storedUses = 1, statInterpolation = { 2, 2, }, },
 		[2] = { 17, 14, cooldown = 0.5, levelRequirement = 80, storedUses = 1, statInterpolation = { 2, 2, }, },
 	},
-}
+}end

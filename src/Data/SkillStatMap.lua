@@ -3,8 +3,7 @@
 -- Stat to internal modifier mapping table for skills
 -- Stat data (c) Grinding Gear Games
 --
-local mod, flag, skill = ...
-
+return function(mod, flag, skill)
 return {
 --
 -- Skill data modifiers
@@ -2363,3 +2362,4 @@ return {
 	-- Display only
 },
 }
+end

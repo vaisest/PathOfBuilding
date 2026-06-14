@@ -53,10 +53,10 @@ local ourClassList = {
 	"GGPKData",
 }
 for _, className in ipairs(classList) do
-	LoadModule("../Classes/"..className..".lua", launch, main)
+	LoadModule("../Classes/" .. className .. ".lua")
 end
 for _, className in ipairs(ourClassList) do
-	LoadModule("Classes/"..className, launch, main)
+	LoadModule("Classes/" .. className)
 end
 
 local tempTable1 = { }
