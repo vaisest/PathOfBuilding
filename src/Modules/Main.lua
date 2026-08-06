@@ -149,7 +149,7 @@ function main:Init()
 		self:ChangeUserPath(self.userPath, ignoreBuild)
 	end
 
-	self.uniqueDB = { list = { }, loading = true }
+	self.uniqueDB = { list = { }, byTitle = {}, loading = true }
 	self.rareDB = { list = { }, loading = true }
 
 	local function loadItemDBs()
@@ -158,6 +158,7 @@ function main:Init()
 				local newItem = new("Item", raw, "UNIQUE", true)
 				if newItem.base then
 					self.uniqueDB.list[newItem.name] = newItem
+					self.uniqueDB.byTitle[newItem.title] = newItem
 				elseif launch.devMode then
 					ConPrintf("Unique DB unrecognised item of type '%s':\n%s", type, raw)
 				end
