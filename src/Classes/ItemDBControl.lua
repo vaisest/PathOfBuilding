@@ -44,7 +44,7 @@ local ItemDBClass = newClass("ItemDBControl", "ListControl", function(self, anch
 		self.controls.requirement = new("DropDownControl", {"LEFT",self.controls.sort,"BOTTOMLEFT"}, {0, 11, 179, 18}, { "Any requirements", "Current level", "Current attributes", "Current useable" }, function(index, value)
 			self.listBuildFlag = true
 		end)
-		self.controls.obtainable = new("DropDownControl", {"LEFT",self.controls.requirement,"RIGHT"}, {2, 0, 179, 18}, { "Obtainable", "Any source", "Unobtainable", "Vendor Recipe", "Upgraded", "Boss Item", "Corruption"}, function(index, value)
+		self.controls.obtainable = new("DropDownControl", { "LEFT", self.controls.requirement, "RIGHT" }, { 2, 0, 179, 18 }, { "Obtainable", "Any source", "Unobtainable", "Vendor Recipe", "Upgraded", "Boss Item", "Corruption", "Core Drop Pool" }, function(index, value)
 			self.listBuildFlag = true
 		end)
 	end
@@ -121,6 +121,8 @@ function ItemDBClass:DoesItemMatchFilters(item)
 		elseif (self.controls.obtainable.selIndex == 6 and not (string.match(source, "Drops from unique"))) then
 			return false
 		elseif (self.controls.obtainable.selIndex == 7 and not (string.match(source, "Vaal Orb"))) then
+			return false
+		elseif (self.controls.obtainable.selIndex == 8) and item.source then
 			return false
 		end
 	end
