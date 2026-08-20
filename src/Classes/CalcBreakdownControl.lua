@@ -175,6 +175,18 @@ function CalcBreakdownClass:AddBreakdownSection(sectionData)
 		})
 	end
 
+	if breakdown.graph then
+		-- Graph visualiser
+		local width = breakdown.graph.width or 320
+		local height = breakdown.graph.height or 150
+		t_insert(self.sectionList, {
+			type = "GRAPH",
+			control = new("GraphControl"):GraphControl(nil, { 0, 0, width - 8, height }, breakdown.graph),
+			width = width,
+			height = height,
+		})
+	end
+
 	if breakdown.rowList and #breakdown.rowList > 0 then
 		-- sort by the first column (the value)
 		local rowList = copyTable(breakdown.rowList, true)
@@ -742,6 +754,12 @@ function CalcBreakdownClass:Draw(viewPort)
 			end
 		elseif section.type == "TABLE" then
 			self:DrawBreakdownTable(viewPort, x, sectionY, section)
+		elseif section.type == "GRAPH" then
+			section.control.x = x + 4
+			section.control.y = sectionY
+			section.control.width = section.width - 8
+			section.control.height = section.height
+			section.control:Draw(viewPort)
 		elseif section.type == "RADIUS" then
 			SetDrawColor(1, 1, 1)
 			DrawImage(nil, x + 2, sectionY, section.width - 4, section.height)

@@ -1085,9 +1085,19 @@ function calcs.defence(env, actor)
 				meleeEvadeStat = evadeStat
 				projectileEvadeStat = evadeStat
 			end
-			output.EvadeChance = 100 - (calcs.hitChance(evadeStat, enemyAccuracy) - evadeChance) * hitChance
-			output.MeleeEvadeChance = m_max(0, m_min(data.misc.EvadeChanceCap, (100 - (calcs.hitChance(meleeEvadeStat, enemyAccuracy) - evadeChance) * hitChance) * calcLib.mod(modDB, nil, "EvadeChance", "MeleeEvadeChance")))
-			output.ProjectileEvadeChance = m_max(0, m_min(data.misc.EvadeChanceCap, (100 - (calcs.hitChance(projectileEvadeStat, enemyAccuracy) - evadeChance) * hitChance) * calcLib.mod(modDB, nil, "EvadeChance", "ProjectileEvadeChance")))
+			-- Evade chance as a function of enemy accuracy, so the breakdown graph can resample it
+			local function evadeChanceAtAccuracy(evasionStat, accuracy, evadeMod)
+				local chance = 100 - (calcs.hitChance(evasionStat, accuracy) - evadeChance) * hitChance
+				if evadeMod then
+					return m_max(0, m_min(data.misc.EvadeChanceCap, chance * evadeMod))
+				end
+				return chance
+			end
+			local meleeEvadeMod = calcLib.mod(modDB, nil, "EvadeChance", "MeleeEvadeChance")
+			local projectileEvadeMod = calcLib.mod(modDB, nil, "EvadeChance", "ProjectileEvadeChance")
+			output.EvadeChance = evadeChanceAtAccuracy(evadeStat, enemyAccuracy)
+			output.MeleeEvadeChance = evadeChanceAtAccuracy(meleeEvadeStat, enemyAccuracy, meleeEvadeMod)
+			output.ProjectileEvadeChance = evadeChanceAtAccuracy(projectileEvadeStat, enemyAccuracy, projectileEvadeMod)
 			-- Condition for displaying evade chance only if melee or projectile evade chance have the same values
 			if output.MeleeEvadeChance ~= output.ProjectileEvadeChance then
 				output.splitEvade = true
@@ -1113,6 +1123,24 @@ function calcs.defence(env, actor)
 					s_format("Effective Evasion: %d", projectileEvadeStat),
 					s_format("Approximate projectile evade chance: %d%%", output.ProjectileEvadeChance),
 				}
+				local function evadeGraph(evasionStat, evadeMod)
+					return {
+						xScale = "LOG",
+						xMin = m_max(10, enemyAccuracy / 10),
+						xMax = m_max(100, enemyAccuracy * 10),
+						xLabel = "Enemy accuracy",
+						yGuide = data.misc.EvadeChanceCap,
+						series = {
+							{ label = "Evade chance", color = { 0.42, 0.5, 0.62 }, func = function(accuracy)
+								return m_max(0, evadeChanceAtAccuracy(evasionStat, accuracy, evadeMod))
+							end },
+						},
+						markers = { { x = enemyAccuracy, label = "Enemy" } },
+					}
+				end
+				breakdown.EvadeChance.graph = output.noSplitEvade and evadeGraph(meleeEvadeStat, meleeEvadeMod) or evadeGraph(evadeStat)
+				breakdown.MeleeEvadeChance.graph = evadeGraph(meleeEvadeStat, meleeEvadeMod)
+				breakdown.ProjectileEvadeChance.graph = evadeGraph(projectileEvadeStat, projectileEvadeMod)
 			end
 		end
 	end
@@ -2018,6 +2046,87 @@ function calcs.buildDefenceEstimations(env, actor)
 			end
 			if (armourReduct ~= 0 and 1 or 0) + (reduction ~= 0 and 1 or 0) + (enemyOverwhelm ~= 0 and 1 or 0) >= 2 then
 				t_insert(breakdown[damageType.."DamageReduction"], s_format("Total %s Damage Reduction: %d%%", damageType, 100 - reductMult * 100))
+			end
+			local enemyHit = damage * resMult
+			-- Mitigation as a function of hit size, shared by the reduction and resistance
+			-- graphs. Uses the unrounded armour formula so the curves stay smooth.
+			local drMax = output.DamageReductionMax
+			local effArmour = effectiveAppliedArmour
+			local flatDR = reduction
+			local overwhelm = enemyOverwhelm
+			local function armourOnlyAt(hit)
+				return m_max(m_min(drMax, calcs.armourReductionF(effArmour, hit)) - overwhelm, 0)
+			end
+			local function totalDRAt(hit)
+				return m_max(m_min(drMax, m_min(drMax, calcs.armourReductionF(effArmour, hit)) + flatDR) - overwhelm, 0)
+			end
+			if effectiveAppliedArmour > 0 and enemyHit > 0 then
+				-- Damage reduction against hit size, split into the armour and flat contributions
+				local function armourBandAt(hit)
+					return m_min(armourOnlyAt(hit), totalDRAt(hit))
+				end
+				-- Max hit is calculated later in the pass, so resolve it at draw time.
+				-- It is a pre-mitigation value, so scale it into the post-resistance domain
+				local function maxHitAt()
+					local maxHit = output[damageType.."MaximumHitTaken"]
+					if maxHit and maxHit > 0 and maxHit ~= m_huge then
+						return maxHit * resMult
+					end
+				end
+				local series = { { label = "Armour", color = { 0.55, 0.58, 0.66 }, func = armourBandAt } }
+				if flatDR > 0 then
+					t_insert(series, { label = "Base", color = { 0.13, 0.66, 0.42 }, func = function(hit)
+						return totalDRAt(hit) - armourBandAt(hit)
+					end })
+				end
+				breakdown[damageType.."DamageReduction"].graph = {
+					xScale = "LOG",
+					xMin = function() return m_max(10, m_min(enemyHit, maxHitAt() or enemyHit) / 10) end,
+					xMax = function() return m_max(100, m_max(enemyHit, maxHitAt() or enemyHit) * 10) end,
+					xLabel = "Hit size",
+					yGuide = drMax,
+					series = series,
+					markers = {
+						{ x = enemyHit, label = "Enemy" },
+						{ x = maxHitAt, label = "Max hit" },
+					},
+				}
+			end
+			-- Damage taken against resistance, as a multiple of the damage taken at the cap.
+			-- Constant factors like taken multipliers cancel in the ratio, so the curve holds
+			-- even though this models resistance and mitigation only
+			local resistBreakdown = breakdown[damageType.."Resist"]
+			if resistBreakdown and damage > 0 then
+				local pen = enemyPen
+				local rawHit = damage
+				local maxResist = (output[damageType.."Resist"] or 0) + (output["Missing"..damageType.."Resist"] or 0)
+				local function takenAt(res)
+					local hit = rawHit * m_max(1 - (res - pen) / 100, 0)
+					return hit * (1 - totalDRAt(hit) / 100)
+				end
+				local atCap = takenAt(maxResist)
+				if atCap > 0 then
+					local minResist = m_min(resist, maxResist - 40) - 5
+					-- Runs past the character's own max resistance up to the hard cap, so the
+					-- headroom from raising maximum resistances is visible too
+					local markers = { { x = resist, label = "Current" } }
+					if maxResist > resist then
+						t_insert(markers, { x = maxResist, label = "Max" })
+					end
+					resistBreakdown.graph = {
+						xMin = minResist,
+						xMax = m_max(maxResist, data.misc.MaxResistCap),
+						yMax = m_max(2, m_ceil(takenAt(minResist) / atCap)),
+						yGuide = 1,
+						yFormat = "%.2fx",
+						xFormat = "%d%%",
+						xLabel = "Resistance",
+						series = { { label = "Damage taken", color = { 0.72, 0.35, 0.3 }, func = function(res)
+							return takenAt(res) / atCap
+						end } },
+						markers = markers,
+					}
+				end
 			end
 		end
 		local takenMult = output[damageType.."TakenHitMult"]
