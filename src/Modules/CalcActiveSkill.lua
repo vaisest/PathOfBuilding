@@ -761,6 +761,7 @@ function calcs.buildActiveSkillModList(env, activeSkill)
 					PhysicalMin = round(damage * (1 - minion.minionData.damageSpread)),
 					PhysicalMax = round(damage * (1 + minion.minionData.damageSpread)),
 					range = minion.minionData.attackRange,
+					rangeBonus = 0,
 				}
 			end
 			minion.weaponData2 = { }
@@ -882,26 +883,32 @@ function calcs.createMinionSkills(env, activeSkill)
 	local minionData = minion.minionData
 
 	minion.activeSkillList = { }
-	local skillIdList = { }
-	for _, skillId in ipairs(minionData.skillList) do
-		if env.data.skills[skillId] then
-			t_insert(skillIdList, skillId)
+	local skillList = { }
+	if minionData.mercenary then
+		-- Mercenaries use the skills from mercenary socket groups, each with their own supports
+		skillList = copyTable(env.mercenarySkillList, true)
+	else
+		for _, skillId in ipairs(minionData.skillList) do
+			if env.data.skills[skillId] then
+				t_insert(skillList, { grantedEffect = env.data.skills[skillId] })
+			end
+		end
+		for _, skill in ipairs(activeSkill.skillModList:List(activeSkill.skillCfg, "ExtraMinionSkill")) do
+			if not skill.minionList or isValueInArray(skill.minionList, minion.type) then
+				t_insert(skillList, { grantedEffect = env.data.skills[skill.skillId] })
+			end
 		end
 	end
-	for _, skill in ipairs(activeSkill.skillModList:List(activeSkill.skillCfg, "ExtraMinionSkill")) do
-		if not skill.minionList or isValueInArray(skill.minionList, minion.type) then
-			t_insert(skillIdList, skill.skillId)
-		end
-	end
-	if #skillIdList == 0 then
+	if #skillList == 0 then
 		-- Not ideal, but let's avoid horrible crashes if a spectre has no skills for some reason
-		t_insert(skillIdList, "Melee")
+		t_insert(skillList, { grantedEffect = env.data.skills.Melee })
 	end
-	for _, skillId in ipairs(skillIdList) do
+	for _, skill in ipairs(skillList) do
 		local activeEffect = {
-			grantedEffect = env.data.skills[skillId],
+			grantedEffect = skill.grantedEffect,
 			level = 1,
 			quality = 0,
+			srcInstance = skill.srcInstance,
 		}
 		if #activeEffect.grantedEffect.levels > 1 then
 			for level, levelData in ipairs(activeEffect.grantedEffect.levels) do
@@ -912,12 +919,14 @@ function calcs.createMinionSkills(env, activeSkill)
 				end
 			end
 		end
-		local minionSkill = calcs.createActiveSkill(activeEffect, activeSkill.supportList, minion, nil, activeSkill)
+		local minionSkill = calcs.createActiveSkill(activeEffect, skill.supportList or activeSkill.supportList, minion, nil, activeSkill)
 		calcs.buildActiveSkillModList(env, minionSkill)
 		minionSkill.skillFlags.minion = true
 		minionSkill.skillFlags.minionSkill = true
 		minionSkill.skillFlags.haveMinion = true
 		minionSkill.skillFlags.spectre = activeSkill.skillFlags.spectre
+		-- Mercenary skills are chosen by the user, so their buffs and curses are always used
+		minionSkill.skillData.enable = minionSkill.skillData.enable or minionData.mercenary
 		minionSkill.skillData.damageEffectiveness = 1 + (activeSkill.skillData.minionDamageEffectiveness or 0) / 100
 		t_insert(minion.activeSkillList, minionSkill)
 	end

@@ -90,6 +90,10 @@ function calcLib.canGrantedEffectSupportActiveSkill(grantedEffect, activeSkill, 
 	if grantedEffect.supportGemsOnly and not activeSkill.activeEffect.gemData then
 		return false
 	end
+	-- Mercenary skills can only be supported by mercenary supports
+	if (not grantedEffect.mercenary) ~= (not activeSkill.activeEffect.grantedEffect.mercenary) then
+		return false
+	end
 
 	-- Special case for things like Forbidden Shako or Hungry Loop with  for example Prismatic Burst and another compatible support
 	if not appliesToGrantedSkills and grantedEffect.fromItem and grantedEffect.support and (activeSkill.activeEffect.grantedEffect.fromItem or activeSkill.activeEffect.grantedEffect.modSource:sub(1, #"Item") == "Item" or (activeSkill.activeEffect.srcInstance and activeSkill.activeEffect.srcInstance.fromItem)) then

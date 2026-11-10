@@ -1046,6 +1046,27 @@ data.skillStatMapMeta = {
 for _, type in pairs(skillTypes) do
 	LoadModule("Data/Skills/" .. type)(data.skills, makeSkillMod, makeFlagMod, makeSkillDataMod)
 end
+-- Mercenary skills reuse the implementation of the player skill they are based on
+for skillId, grantedEffect in pairs(LoadModule("Data/Skills/mercenary")) do
+	for _, key in ipairs({ "skillTypes", "minionSkillTypes" }) do
+		if grantedEffect[key] then
+			local skillTypes = { }
+			for _, name in ipairs(grantedEffect[key]) do
+				skillTypes[SkillType[name]] = true
+			end
+			grantedEffect[key] = skillTypes
+		end
+	end
+	data.skills[skillId] = grantedEffect
+	local baseSkill = grantedEffect.baseSkillId and data.skills[grantedEffect.baseSkillId]
+	if baseSkill then
+		for _, key in ipairs({ "baseFlags", "statMap", "baseMods", "parts", "initialFunc", "preSkillTypeFunc", "preDamageFunc", "postCritFunc", "explosiveArrowFunc" }) do
+			if grantedEffect[key] == nil and baseSkill[key] ~= nil then
+				grantedEffect[key] = type(baseSkill[key]) == "table" and copyTable(baseSkill[key]) or baseSkill[key]
+			end
+		end
+	end
+end
 for skillId, grantedEffect in pairs(data.skills) do
 	grantedEffect.name = sanitiseText(grantedEffect.name)
 	grantedEffect.id = skillId
@@ -1098,7 +1119,9 @@ local function setupGem(gem, gemId)
 	if gem.grantedEffect.support and gem.grantedEffectId ~= "SupportBarrage" then
 		baseName = baseName .. " Support"
 	end
-	data.gemForBaseName[baseName:lower()] = gemId
+	if not gem.mercenary then
+		data.gemForBaseName[baseName:lower()] = gemId
+	end
 	-- Hybrid gems (e.g. Vaal gems) use the display name of the active skill e.g. Vaal Summon Skeletons of Sorcery
 	if gem.baseTypeName and gem.baseTypeName ~= baseName then
 		data.gemForBaseName[gem.baseTypeName:lower()] = gemId
@@ -1150,9 +1173,30 @@ end
 for id, gem in pairs(toAddGems) do
     data.gems[id] = gem
 end
+-- Mercenary skills and supports have no gem items, so they get gem entries for selecting them in mercenary socket groups
+for skillId, grantedEffect in pairs(data.skills) do
+	if grantedEffect.mercenary then
+		local gem = {
+			name = grantedEffect.name,
+			gameId = "Mercenary",
+			variantId = skillId,
+			grantedEffectId = skillId,
+			mercenary = true,
+			tags = { mercenary = true, support = grantedEffect.support, grants_active_skill = not grantedEffect.support },
+			tagString = "Mercenary",
+			reqStr = 0,
+			reqDex = 0,
+			reqInt = 0,
+			naturalMaxLevel = #grantedEffect.levels,
+		}
+		setupGem(gem, "Mercenary/"..skillId)
+		data.gems[gem.id] = gem
+	end
+end
 
 -- Load minions
 data.minions = LoadModule("Data/Minions")(makeSkillMod, makeFlagMod)
+data.mercenaryBuilds = LoadModule("Data/MercenaryBuilds")
 data.spectres = LoadModule("Data/Spectres")(makeSkillMod, makeFlagMod)
 for name, spectre in pairs(data.spectres) do
 	spectre.limit = "ActiveSpectreLimit"

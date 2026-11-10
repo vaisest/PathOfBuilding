@@ -151,6 +151,20 @@ function GemSelectClass:FilterSupport(gemId, gemData)
 	if gemData.grantedEffect.legacy and not self.skillsTab.showLegacyGems then
 		return false
 	end
+	-- Mercenary gems are only used in mercenary socket groups, and supports are limited to those of the group's mercenary skill
+	local group = self.skillsTab.displayGroup
+	if (not gemData.mercenary) ~= not (group and group.mercenary) then
+		return false
+	end
+	if gemData.mercenary and gemData.grantedEffect.support then
+		-- The gem being edited is ignored, as it is replaced while typing
+		for index, gem in ipairs(group.gemList) do
+			local supports = index ~= self.index and gem.gemData and gem.gemData.grantedEffect.mercenarySupports
+			if supports and not isValueInArray(supports, gemData.grantedEffectId) then
+				return false
+			end
+		end
+	end
 
 	if self.imbuedSelect then
 		return self.sortCache.canSupport[gemId]
@@ -362,7 +376,7 @@ function GemSelectClass:UpdateSortCache()
 	for gemId, gemData in pairs(self.gems) do
 		sortCache.dps[gemId] = baseDPS
 		-- Gems that support the active skill or have global effects need DPS calc
-		if sortCache.canSupport[gemId] or (gemData.grantedEffect.hasGlobalEffect and not gemData.grantedEffect.support) then
+		if (sortCache.canSupport[gemId] or (gemData.grantedEffect.hasGlobalEffect and not gemData.grantedEffect.support)) and (not gemData.mercenary) == not self.skillsTab.displayGroup.mercenary then
 			sortCache.pendingGems[#sortCache.pendingGems + 1] = gemId
 		end
 		-- Neutral color until DPS is computed

@@ -214,6 +214,14 @@ function SkillsTabClass:SkillsTab(build)
 		self:AddUndoState()
 		self.build.buildFlag = true
 	end)
+	self.controls.groupMercenary = new("CheckBoxControl"):CheckBoxControl({ "LEFT", self.controls.includeInFullDPS, "RIGHT" }, { 90, 0, 20 }, "Mercenary:", function(state)
+		self.displayGroup.mercenary = state
+		self:AddUndoState()
+		self.build.buildFlag = true
+	end, "Skills in this group are used by your mercenary, with mercenary gems.\nThe mercenary is summoned by the Order: To me! skill.")
+	self.controls.groupMercenary.shown = function()
+		return self.displayGroup.source == nil
+	end
 
 	local function getSelectedItem()
 		local item
@@ -446,6 +454,7 @@ function SkillsTabClass:LoadSkill(node, skillSetId)
 	local socketGroup = { }
 	socketGroup.enabled = node.attrib.active == "true" or node.attrib.enabled == "true"
 	socketGroup.includeInFullDPS = node.attrib.includeInFullDPS and node.attrib.includeInFullDPS == "true"
+	socketGroup.mercenary = node.attrib.mercenary == "true"
 	socketGroup.groupCount = tonumber(node.attrib.groupCount)
 	socketGroup.label = node.attrib.label
 	socketGroup.slot = node.attrib.slot
@@ -589,6 +598,7 @@ function SkillsTabClass:Save(xml)
 			local node = { elem = "Skill", attrib = {
 				enabled = tostring(socketGroup.enabled),
 				includeInFullDPS = tostring(socketGroup.includeInFullDPS),
+				mercenary = socketGroup.mercenary and "true",
 				groupCount = socketGroup.groupCount ~= nil and tostring(socketGroup.groupCount),
 				label = socketGroup.label,
 				slot = socketGroup.slot,
@@ -856,7 +866,8 @@ function SkillsTabClass:CreateGemSlot(index)
 	end)
 	slot.level:AddToTabGroup(self.controls.groupLabel)
 	slot.level.enabled = function()
-		return index <= #self.displayGroup.gemList
+		-- Mercenary skill levels come from the mercenary's level and they don't use quality
+		return index <= #self.displayGroup.gemList and not self.displayGroup.mercenary
 	end
 	self.controls["gemSlot"..index.."Level"] = slot.level
 
@@ -947,7 +958,7 @@ function SkillsTabClass:CreateGemSlot(index)
 	end
 	slot.quality:AddToTabGroup(self.controls.groupLabel)
 	slot.quality.enabled = function()
-		return index <= #self.displayGroup.gemList
+		return index <= #self.displayGroup.gemList and not self.displayGroup.mercenary
 	end
 	self.controls["gemSlot"..index.."Quality"] = slot.quality
 
@@ -1100,7 +1111,7 @@ function SkillsTabClass:UpdateGemSlots()
 end
 
 -- Find the skill gem matching the given specification
-function SkillsTabClass:FindSkillGem(nameSpec)
+function SkillsTabClass:FindSkillGem(nameSpec, mercenary)
 	-- Search for gem name using increasingly broad search patterns
 	local patternList = {
 		"^ "..nameSpec:gsub("%a", function(a) return "["..a:upper()..a:lower().."]" end).."$", -- Exact match (case-insensitive)
@@ -1112,7 +1123,7 @@ function SkillsTabClass:FindSkillGem(nameSpec)
 	for i, pattern in ipairs(patternList) do
 		local foundGemData
 		for gemId, gemData in pairs(self.build.data.gems) do
-			if (" "..gemData.name):match(pattern) then
+			if (not gemData.mercenary) == (not mercenary) and (" "..gemData.name):match(pattern) then
 				if foundGemData then
 					return "Ambiguous gem name '" .. nameSpec .. "': matches '" .. foundGemData.name .. "', '" .. gemData.name .. "'"
 				end
@@ -1193,7 +1204,7 @@ function SkillsTabClass:ProcessSocketGroup(socketGroup)
 		elseif gemInstance.nameSpec:match("%S") then
 			-- Specified by gem/skill name, try to match it
 			-- Used to migrate pre-1.4.20 builds
-			gemInstance.errMsg, gemInstance.gemData = self:FindSkillGem(gemInstance.nameSpec)
+			gemInstance.errMsg, gemInstance.gemData = self:FindSkillGem(gemInstance.nameSpec, socketGroup.mercenary)
 			gemInstance.gemId = gemInstance.gemData and gemInstance.gemData.id
 			gemInstance.skillId = gemInstance.gemData and gemInstance.gemData.grantedEffectId
 			if gemInstance.gemData then
@@ -1282,6 +1293,7 @@ function SkillsTabClass:SetDisplayGroup(socketGroup)
 		self.controls.groupSlot:SelByValue(socketGroup.slot, "slotName")
 		self.controls.groupEnabled.state = socketGroup.enabled
 		self.controls.includeInFullDPS.state = socketGroup.includeInFullDPS and socketGroup.enabled
+		self.controls.groupMercenary.state = socketGroup.mercenary
 		self.controls.groupCount:SetText(socketGroup.groupCount or 1)
 		if socketGroup.imbuedSupport then
 			local gemId = data.gems[data.gemForBaseName[socketGroup.imbuedSupport:lower().." support"]]

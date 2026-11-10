@@ -559,6 +559,7 @@ function calcs.initEnv(build, mode, override, specEnv)
 
 		-- skill-related
 		env.player.activeSkillList = { }
+		env.mercenarySkillList = { }
 		env.auxSkillList = { }
 	--elseif accelerate.everything then
 	--	local minionDB = nil
@@ -1862,12 +1863,17 @@ function calcs.initEnv(build, mode, override, specEnv)
 										end
 									end
 								end
-								local activeSkill = calcs.createActiveSkill(activeEffect, appliedSupportList, env.player, group)
-								if gemInstance.gemData then
-									activeSkill.slotName = groupCfg.slotName
+								if group.mercenary then
+									-- Used by the mercenary instead of the player, see calcs.createMinionSkills
+									t_insert(env.mercenarySkillList, { grantedEffect = grantedEffect, srcInstance = gemInstance, supportList = appliedSupportList })
+								else
+									local activeSkill = calcs.createActiveSkill(activeEffect, appliedSupportList, env.player, group)
+									if gemInstance.gemData then
+										activeSkill.slotName = groupCfg.slotName
+									end
+									t_insert(socketGroupSkillList, activeSkill)
+									t_insert(env.player.activeSkillList, activeSkill)
 								end
-								t_insert(socketGroupSkillList, activeSkill)
-								t_insert(env.player.activeSkillList, activeSkill)
 							end
 						end
 						if gemInstance.gemData and not accelerate.requirementsGems then

@@ -1157,7 +1157,7 @@ local function initMinionModDB(env, activeSkill, output)
 	minion.output = output or { }
 	minion.modDB.multipliers["Level"] = minion.level
 	calcs.initModDB(env, minion.modDB)
-	local baseLife = minion.lifeTable[minion.level] * minion.minionData.life
+	local baseLife = minion.minionData.lifePerLevel and minion.minionData.lifePerLevel * minion.level or minion.lifeTable[minion.level] * minion.minionData.life
 	if minion.hostile then
 		baseLife = baseLife * (env.data.mapLevelLifeMult[env.enemyLevel] or 1)
 	end
@@ -1192,6 +1192,52 @@ local function initMinionModDB(env, activeSkill, output)
 	minion.modDB:NewMod("ProjectileCount", "BASE", 1, "Base")
 	minion.modDB:NewMod("MaximumFortification", "BASE", env.data.monsterConstants["base_max_fortification"], "Base")
 	minion.modDB:NewMod("Damage", "MORE", 200, "Base", 0, KeywordFlag.Bleed, { type = "ActorCondition", actor = "enemy", var = "Moving" })
+	if minion.minionData.permanentDamagePenalty then
+		-- The penalty tapers in linearly from level 45 to 83 according to 3.29.1 patch notes
+		local taper = m_min(m_max((minion.level - 45) / (83 - 45), 0), 1)
+		minion.modDB:NewMod("Damage", "MORE", minion.minionData.permanentDamagePenalty * taper, "Permanent Mercenary")
+	end
+	if minion.minionData.mercenary then
+		local buildId = activeSkill.skillData.mercenaryBuild or "AUTO"
+		local mercenaryBuild
+		for _, build in ipairs(env.data.mercenaryBuilds) do
+			if build.id == buildId then
+				mercenaryBuild = build
+			elseif buildId == "AUTO" then
+				for _, skill in ipairs(env.mercenarySkillList) do
+					if isValueInArray(build.primarySkills, skill.grantedEffect.id) then
+						mercenaryBuild = build
+					end
+				end
+			end
+			if mercenaryBuild then
+				break
+			end
+		end
+		if mercenaryBuild then
+			-- Hidden stats are given for levels 24, 68 and 84, and interpolated linearly between them
+			local level = m_min(m_max(minion.level, 24), 84)
+			local lower, upper, lowerLevel, upperLevel = 2, 3, 24, 68
+			if level > 68 then
+				lower, upper, lowerLevel, upperLevel = 3, 4, 68, 84
+			end
+			for _, stat in ipairs(mercenaryBuild.stats) do
+				local value = m_floor(stat[lower] + (stat[upper] - stat[lower]) * (level - lowerLevel) / (upperLevel - lowerLevel))
+				local map = env.data.skillStatMap[stat[1]]
+				if map and value ~= 0 then
+					for _, modOrGroup in ipairs(map) do
+						local group = modOrGroup.name and map or modOrGroup
+						for _, mod in ipairs(modOrGroup.name and { modOrGroup } or modOrGroup) do
+							mod = copyTable(mod)
+							mod.value = group.value or value * (group.mult or 1) / (group.div or 1) + (group.base or 0)
+							mod.source = "Mercenary:" .. mercenaryBuild.name
+							minion.modDB:AddMod(mod)
+						end
+					end
+				end
+			end
+		end
+	end
 	for _, mod in ipairs(minion.minionData.modList) do
 		minion.modDB:AddMod(mod)
 	end
@@ -1245,7 +1291,8 @@ end
 
 -- Add modifiers granted to the minion by its skill or an active buff.
 local function addMinionModifiers(modList, skillCfg, minion)
-	for _, value in ipairs(modList:List(skillCfg, "MinionModifier")) do
+	-- Mercenaries are allies rather than minions
+	for _, value in ipairs(modList:List(skillCfg, minion.minionData.mercenary and "MercenaryModifier" or "MinionModifier")) do
 		if not value.type or minion.type == value.type then
 			minion.modDB:AddMod(value.mod)
 		end
@@ -2732,7 +2779,8 @@ function calcs.perform(env, skipEHP)
 					t_insert(curses, curse)
 				end
 			elseif buff.type == "Link" then
-				local linksApplyToMinions = env.minion and modDB:Flag(nil, "Condition:CanLinkToMinions") and modDB:Flag(nil, "Condition:LinkedToMinion")
+				-- Mercenaries are allies, so they can always be linked
+				local linksApplyToMinions = env.minion and (modDB:Flag(nil, "Condition:CanLinkToMinions") or env.minion.minionData.mercenary) and modDB:Flag(nil, "Condition:LinkedToMinion")
 						and not env.minion.modDB:Flag(nil, "Condition:CannotBeDamaged") and not env.minion.mainSkill.summonSkill.skillTypes[SkillType.MinionsAreUndamagable]
 				if env.mode_buffs and (#linkSkills < 1) and (partyTabEnableExportBuffs or linksApplyToMinions) then
 					-- Check for extra modifiers to apply to link skills
@@ -2769,6 +2817,10 @@ function calcs.perform(env, skipEHP)
 						env.minion.modDB.conditions["AffectedByLink"] = true
 						local srcList = new("ModList"):ModList()
 						inc = inc + env.minion.modDB:Sum("INC", nil, "BuffEffectOnSelf", "LinkEffectOnSelf")
+						if env.minion.minionData.mercenary and modDB:Flag(nil, "LightRadiusAppliesToMercenaryLinkEffect") then
+							-- Light Radius conversion from Golden Glory
+							inc = inc + skillModList:Sum("INC", skillCfg, "LightRadius")
+						end
 						more = more * env.minion.modDB:More(nil, "BuffEffectOnSelf", "LinkEffectOnSelf")
 						mult = (1 + inc / 100) * more
 						srcList:ScaleAddList(buff.modList, mult)
@@ -2857,7 +2909,7 @@ function calcs.perform(env, skipEHP)
 								mergeBuff(srcList, minionBuffs, buff.name)
 								mergeBuff(buff.modList, minionBuffs, buff.name)
 								if activeMinionSkill.skillData.thisIsNotABuff then
-									buffs[buff.name].notBuff = true
+									minionBuffs[buff.name].notBuff = true
 								end
 							end
 						end

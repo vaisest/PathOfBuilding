@@ -129,6 +129,11 @@ local function mapAffixDropDownFunction(val, modList, enemyModList, build)
 	end
 end
 
+local mercenaryBuildList = { { val = "AUTO", label = "Match primary skills" } }
+for _, build in ipairs(data.mercenaryBuilds) do
+	table.insert(mercenaryBuildList, { val = build.id, label = build.name })
+end
+
 return {
 	-- Section: General options
 	{ section = "General", col = 1 },
@@ -553,6 +558,13 @@ return {
 	end },
 	{ var = "MomentumSwiftnessStacks", type = "count", label = "Swiftness # of Momentum Removed:", ifSkill = "Momentum", apply = function(val, modList, enemyModList)
 		modList:NewMod("Multiplier:MomentumStacksRemoved", "BASE", val, "Config")
+	end },
+	{ label = "Mercenary:", ifSkill = "Order: To me!" },
+	{ var = "mercenaryLevel", type = "count", label = "Mercenary level:", ifSkill = "Order: To me!", defaultPlaceholderState = 84, tooltip = "The level of the area the Mercenary was found in.", apply = function(val, modList, enemyModList)
+		modList:NewMod("SkillData", "LIST", { key = "minionLevel", value = val }, "Config", { type = "SkillName", skillName = "Order: To me!" })
+	end },
+	{ var = "mercenaryBuild", type = "list", label = "Mercenary type:", ifSkill = "Order: To me!", list = mercenaryBuildList, defaultIndex = 1, tooltip = "Determines the hidden stats the Mercenary gains with level.\nBy default it is the type with one of the Mercenary's skills as a primary skill.", apply = function(val, modList, enemyModList)
+		modList:NewMod("SkillData", "LIST", { key = "mercenaryBuild", value = val }, "Config", { type = "SkillName", skillName = "Order: To me!" })
 	end },
 	{ label = "Plague Bearer:", ifSkill = "Plague Bearer"},
 	{ var = "plagueBearerState", type = "list", label = "State:", defaultIndex = 1, ifSkill = "Plague Bearer", list = {{val="INC",label="Incubating"},{val="INF",label="Infecting"}}, apply = function(val, modList, enemyModList)
