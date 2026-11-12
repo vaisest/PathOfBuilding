@@ -191,6 +191,13 @@ function TreeTabClass:TreeTab(build)
 		self:FindTimelessJewel()
 	end)
 
+	self.controls.draw = new("ButtonControl"):ButtonControl(nil, { 0, 0, 80, 20 }, function()
+		return self.viewer.drawMode and "^1Drawing" or "Draw"
+	end, function()
+		self.viewer.drawMode = not self.viewer.drawMode
+	end)
+	self.controls.draw.tooltipText = "Draw over the tree.\nLeft-drag to draw, right-click to undo the last line."
+
 	--Default index for Tattoos
 	self.defaultTattoo = { }
 
@@ -443,6 +450,8 @@ function TreeTabClass:Draw(viewPort, inputEvents)
 	self.controls.specSelect.y = -bottomDrawerHeight - linesHeight
 
 	local treeViewPort = { x = viewPort.x, y = viewPort.y, width = viewPort.width, height = viewPort.height - (self.showConvert and 64 + bottomDrawerHeight + linesHeight or 32 + bottomDrawerHeight + linesHeight)}
+	self.controls.draw.x = viewPort.x + viewPort.width - 84
+	self.controls.draw.y = viewPort.y + 4
 	if self.jumpToNode then
 		self.viewer:Focus(self.jumpToX, self.jumpToY, treeViewPort, self.build)
 		self.jumpToNode = false

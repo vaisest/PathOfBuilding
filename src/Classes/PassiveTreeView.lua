@@ -81,6 +81,7 @@ function PassiveTreeViewClass:PassiveTreeView()
 	self.searchStrResults = {}
 	self.showStatDifferences = true
 	self.hoverNode = nil
+	self.drawings = {}
 	return self
 end
 
@@ -100,6 +101,16 @@ function PassiveTreeViewClass:Load(xml, fileName)
 	if xml.attrib.showStatDifferences then
 		self.showStatDifferences = xml.attrib.showStatDifferences == "true"
 	end
+	self.drawings = {}
+	for _, node in ipairs(xml) do
+		if node.elem == "Drawing" and type(node[1]) == "string" then
+			local stroke = {}
+			for num in node[1]:gmatch("[^,]+") do
+				t_insert(stroke, tonumber(num))
+			end
+			t_insert(self.drawings, stroke)
+		end
+	end
 end
 
 function PassiveTreeViewClass:Save(xml)
@@ -111,6 +122,9 @@ function PassiveTreeViewClass:Save(xml)
 		searchStr = self.searchStr,
 		showStatDifferences = tostring(self.showStatDifferences),
 	}
+	for _, stroke in ipairs(self.drawings) do
+		t_insert(xml, { elem = "Drawing", table.concat(stroke, ",") })
+	end
 end
 
 -- Look up the jewel item socketed at a given node ID in a compare spec.
@@ -206,7 +220,10 @@ function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
 	for id, event in ipairs(inputEvents) do
 		if event.type == "KeyDown" then
 			if event.key == "LEFTBUTTON" then
-				if mOver then
+				if mOver and self.drawMode then
+					self.curStroke = {}
+					t_insert(self.drawings, self.curStroke)
+				elseif mOver then
 					-- Record starting coords of mouse drag
 					-- Dragging won't actually commence unless the cursor moves far enough
 					self.dragX, self.dragY = cursorX, cursorY
@@ -235,7 +252,10 @@ function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
 					treeClick = "LEFT"
 				end
 			elseif mOver then
-				if event.key == "RIGHTBUTTON" then
+				if event.key == "RIGHTBUTTON" and self.drawMode then
+					t_remove(self.drawings)
+					build.modFlag = true
+				elseif event.key == "RIGHTBUTTON" then
 					treeClick = "RIGHT"
 				elseif event.key == "WHEELUP" then
 					self:Zoom(IsKeyDown("SHIFT") and 3 or 1, viewPort)
@@ -290,6 +310,18 @@ function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
 				(y - offsetY) / scale
 	end
 
+	if self.curStroke and IsKeyDown("LEFTBUTTON") then
+		local x, y = screenToTree(cursorX, cursorY)
+		x, y = m_floor(x), m_floor(y)
+		local n = #self.curStroke
+		if x ~= self.curStroke[n - 1] or y ~= self.curStroke[n] then
+			t_insert(self.curStroke, x)
+			t_insert(self.curStroke, y)
+		end
+	elseif self.curStroke then
+		self.curStroke = nil
+		build.modFlag = true
+	end
 	if IsKeyDown("SHIFT") then
 		-- Enable path tracing mode
 		self.traceMode = true
@@ -301,7 +333,7 @@ function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
 
 	local hoverNode
 	local hoverCompareNode -- Track compare-only node hover separately
-	if mOver then
+	if mOver and not self.curStroke then
 		-- Cursor is over the tree, check if it is over a node
 		local curTreeX, curTreeY = screenToTree(cursorX, cursorY)
 		for nodeId, node in pairs(spec.nodes) do
@@ -1254,6 +1286,28 @@ function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
 					drawJewelRadius(cJewel, scrX, scrY, JEWEL_RADIUS_TINT_COMPARE_ONLY)
 				end
 			end
+		end
+	end
+	-- User drawings: flat-ended segments with bevelled joins, MS Paint style
+	SetDrawLayer(nil, 50)
+	SetDrawColor(1, 0, 0)
+	local w = m_max(10 * scale, 1)
+	for _, stroke in ipairs(self.drawings) do
+		if #stroke == 2 then
+			local x, y = treeToScreen(stroke[1], stroke[2])
+			DrawImage(nil, x - w, y - w, w * 2, w * 2)
+		end
+		local px, py
+		for i = 1, #stroke - 3, 2 do
+			local x1, y1 = treeToScreen(stroke[i], stroke[i + 1])
+			local x2, y2 = treeToScreen(stroke[i + 2], stroke[i + 3])
+			local len = math.sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2)
+			local nx, ny = (y1 - y2) / len * w, (x2 - x1) / len * w
+			DrawImageQuad(nil, x1 + nx, y1 + ny, x2 + nx, y2 + ny, x2 - nx, y2 - ny, x1 - nx, y1 - ny)
+			if px then
+				DrawImageQuad(nil, x1 + px, y1 + py, x1 + nx, y1 + ny, x1 - px, y1 - py, x1 - nx, y1 - ny)
+			end
+			px, py = nx, ny
 		end
 	end
 end
