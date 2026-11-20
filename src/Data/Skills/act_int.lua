@@ -16798,13 +16798,18 @@ skills["Spark"] = {
 			name = "1 Hit",
 		},
 		{
+			name = "Average Hits",
+		},
+		{
 			name = "Maximum Hits",
 		},
 	},
-	preDamageFunc = function(activeSkill, output)
-		local skillData = activeSkill.skillData
-		if activeSkill.skillPart == 2 then
-			skillData.dpsMultiplier = ( skillData.dpsMultiplier or 1 ) * (1 + math.floor( output.Duration / 0.66 ))
+	preDamageFunc = function(activeSkill, output, breakdown)
+		if activeSkill.skillPart ~= 1 then
+			local averageHits, maxHits = calcLib.sparkHitsPerCast(activeSkill, output, breakdown, 90)
+			local skillData = activeSkill.skillData
+			output.SparkHitsPerCast = activeSkill.skillPart == 2 and averageHits or maxHits
+			skillData.dpsMultiplier = (skillData.dpsMultiplier or 1) * output.SparkHitsPerCast
 			output.SkillDPSMultiplier = skillData.dpsMultiplier
 		end
 	end,
@@ -16888,13 +16893,18 @@ skills["SparkAltX"] = {
 			name = "1 Hit",
 		},
 		{
+			name = "Average Hits",
+		},
+		{
 			name = "Maximum Hits",
 		},
 	},
-	preDamageFunc = function(activeSkill, output) 
-		local skillData = activeSkill.skillData
-		if activeSkill.skillPart == 2 then
-			skillData.dpsMultiplier = ( skillData.dpsMultiplier or 1 ) * (1 + math.floor( output.Duration / 0.66 ))
+	preDamageFunc = function(activeSkill, output, breakdown)
+		if activeSkill.skillPart ~= 1 then
+			local averageHits, maxHits = calcLib.sparkHitsPerCast(activeSkill, output, breakdown, 360)
+			local skillData = activeSkill.skillData
+			output.SparkHitsPerCast = activeSkill.skillPart == 2 and averageHits or maxHits
+			skillData.dpsMultiplier = (skillData.dpsMultiplier or 1) * output.SparkHitsPerCast
 			output.SkillDPSMultiplier = skillData.dpsMultiplier
 		end
 	end,
@@ -16979,13 +16989,18 @@ skills["SparkAltY"] = {
 			name = "1 Hit",
 		},
 		{
+			name = "Average Hits",
+		},
+		{
 			name = "Maximum Hits",
 		},
 	},
-	preDamageFunc = function(activeSkill, output)
-		local skillData = activeSkill.skillData
-		if activeSkill.skillPart == 2 then
-			skillData.dpsMultiplier = ( skillData.dpsMultiplier or 1 ) * (1 + math.floor( output.Duration / 0.66 ))
+	preDamageFunc = function(activeSkill, output, breakdown)
+		if activeSkill.skillPart ~= 1 then
+			local averageHits, maxHits = calcLib.sparkHitsPerCast(activeSkill, output, breakdown, 90)
+			local skillData = activeSkill.skillData
+			output.SparkHitsPerCast = activeSkill.skillPart == 2 and averageHits or maxHits
+			skillData.dpsMultiplier = (skillData.dpsMultiplier or 1) * output.SparkHitsPerCast
 			output.SkillDPSMultiplier = skillData.dpsMultiplier
 		end
 	end,

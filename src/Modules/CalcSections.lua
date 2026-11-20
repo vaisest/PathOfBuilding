@@ -841,6 +841,7 @@ return {
 		{ label = "Small Explosions", modName = "SmallExplosions", cfg = "skill" },
 	}, },
 	{ label = "Normal Hits/Cast", haveOutput = "NormalHitsPerCast", { format = "{3:output:NormalHitsPerCast}", { breakdown = "NormalHitsPerCast" }, }, },
+	{ label = "Hits/Cast", haveOutput = "SparkHitsPerCast", { format = "{2:output:SparkHitsPerCast}", { breakdown = "SparkHitsPerCast" }, }, },
 	{ label = "Super Hits/Cast", haveOutput = "SuperchargedHitsPerCast", { format = "{3:output:SuperchargedHitsPerCast}", { breakdown = "SuperchargedHitsPerCast" }, }, },
 	{ label = "DPS Multiplier", haveOutput = "SkillDPSMultiplier", { format = "{3:output:SkillDPSMultiplier}", { breakdown = "SkillDPSMultiplier" }, }, },
 	{ label = "Average Seq More", haveOutput = "KineticFusilladeAvgMoreMult", { format = "{1:output:KineticFusilladeAvgMoreMult}%", { breakdown = "KineticFusilladeSequentialBreakdown" }, }, },

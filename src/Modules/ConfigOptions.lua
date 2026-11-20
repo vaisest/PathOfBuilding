@@ -649,6 +649,16 @@ return {
 	{ var = "configSnipeStages", type = "count", label = "# of Snipe stages:", ifSkill = "Snipe", tooltip = "Sets the number of stages reached before releasing Snipe.", apply = function(val, modList, enemyModList)
 		modList:NewMod("Multiplier:SnipeStage", "BASE", val, "Config")
 	end },
+	{ label = "Spark:", ifSkill = "Spark", includeTransfigured = true },
+	{ var = "sparkEnemyDistance", type = "count", label = "Distance to enemy:", ifSkill = "Spark", includeTransfigured = true, defaultPlaceholderState = 40, tooltip = "Distance from you to the enemy when casting Spark, used to estimate how many sparks reach the enemy.\n10 units equals 1 metre.", apply = function(val, modList, enemyModList)
+		modList:NewMod("SkillData", "LIST", { key = "sparkEnemyDistance", value = val }, "Config", { type = "SkillName", skillName = "Spark", includeTransfigured = true })
+	end },
+	{ var = "sparkArena", type = "list", label = "Arena size:", ifSkill = "Spark", includeTransfigured = true, tooltip = "Sparks bounce off walls, so smaller arenas send them back towards the enemy for additional hits.\nIn open areas sparks only pass the enemy once before expiring.", list = {{val="OPEN",label="Open"},{val="LARGE",label="Large (100 unit radius)"},{val="SMALL",label="Small (60 unit radius)"},{val="TIGHT",label="Tight (40 unit radius)"}}, apply = function(val, modList, enemyModList)
+		local radius = ({ LARGE = 100, SMALL = 60, TIGHT = 40 })[val]
+		if radius then
+			modList:NewMod("SkillData", "LIST", { key = "sparkArenaRadius", value = radius }, "Config", { type = "SkillName", skillName = "Spark", includeTransfigured = true })
+		end
+	end },
 	{ label = "Spectral Tiger:", ifSkill = "Summon Spectral Tiger" },
 	{ var = "configSpectralTigerCount", type = "count", label = "# of Active Spectral Tigers:", ifSkill = "Summon Spectral Tiger", defaultPlaceholderState = 5, tooltip = "Sets the number of active Spectral Tigers.\nThe base maximum number of Spectral Tigers is 5.", apply = function(val, modList, enemyModList)
 		modList:NewMod("Multiplier:SpectralTigerConfig", "BASE", val, "Config")
@@ -786,8 +796,8 @@ return {
 	{ var = "VaalMoltenShellDamageMitigated", type = "count", label = "Damage mitigated:", tooltip = "Vaal Molten Shell reflects damage to the enemy,\nbased on the amount of damage it has mitigated in the last second.", ifSkill = "Vaal Molten Shell", apply = function(val, modList, enemyModList)
 		modList:NewMod("SkillData", "LIST", { key = "VaalMoltenShellDamageMitigated", value = val }, "Config", { type = "SkillName", skillName = "Molten Shell" })
 	end },
-	{ label = "Multi-part area skills:", ifSkill = { "Seismic Trap", "Lightning Spire Trap", "Explosive Trap", "Molten Strike", "Ball Lightning" }, includeTransfigured = true },
-	{ var = "enemySizePreset", type = "list", label = "Enemy size preset:", ifSkill = { "Seismic Trap", "Lightning Spire Trap", "Explosive Trap", "Molten Strike", "Ball Lightning" }, includeTransfigured = true, defaultIndex = 2, tooltip = [[
+	{ label = "Multi-part area skills:", ifSkill = { "Seismic Trap", "Lightning Spire Trap", "Explosive Trap", "Molten Strike", "Ball Lightning", "Spark" }, includeTransfigured = true },
+	{ var = "enemySizePreset", type = "list", label = "Enemy size preset:", ifSkill = { "Seismic Trap", "Lightning Spire Trap", "Explosive Trap", "Molten Strike", "Ball Lightning", "Spark" }, includeTransfigured = true, defaultIndex = 2, tooltip = [[
 Configure the radius of an enemy hitbox which is used in calculating some area multi-hitting (shotgunning) effects.
 
 Small sets the radius to 2.
@@ -812,7 +822,7 @@ Huge sets the radius to 11.
 			modList:NewMod("EnemyRadius", "BASE", 11, "Config")
 		end
 	end },
-	{ var = "enemyRadius", type = "integer", label = "Enemy radius:", ifSkill = { "Seismic Trap", "Lightning Spire Trap", "Explosive Trap", "Molten Strike", "Ball Lightning" }, includeTransfigured = true, tooltip = "Configure the radius of an enemy hitbox to calculate some area overlapping (shotgunning) effects.", apply = function(val, modList, enemyModList)
+	{ var = "enemyRadius", type = "integer", label = "Enemy radius:", ifSkill = { "Seismic Trap", "Lightning Spire Trap", "Explosive Trap", "Molten Strike", "Ball Lightning", "Spark" }, includeTransfigured = true, tooltip = "Configure the radius of an enemy hitbox to calculate some area overlapping (shotgunning) effects.", apply = function(val, modList, enemyModList)
 		modList:NewMod("EnemyRadius", "OVERRIDE", m_max(val, 1), "Config")
 	end },
 	{ var = "TotalMinionLife", type = "integer", label = "Minion Life override:", ifMod = "takenFromMinionBeforeYou", tooltip = "Overrides the automatically calculated Life of the minion supported by Companionship.", apply = function(val, modList, enemyModList)
